@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
-user_files/enabled.pck
-user_files/personal.dic
+user_files/
+tests/
 __pycache__/
 *.py[cod]
 *$py.class

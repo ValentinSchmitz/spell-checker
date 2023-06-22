@@ -1,3 +1,4 @@
+import os.path
 import pickle
 import subprocess
 from aqt.operations import QueryOp
@@ -6,6 +7,18 @@ from aqt.qt import *
 from aqt.utils import openFolder, showWarning, showInfo
 from .const import *
 from functools import partial
+from .manage import *
+
+QCOLOR_ORANGE = QColor(255, 165, 0, 50)
+QCOLOR_GREEN = QColor(0, 255, 0, 50)
+
+
+def getDictionaries():
+    dicts = []
+    for file in os.listdir(DICT_DIR):
+        if file.endswith(".bdic"):
+            dicts.append(file.removesuffix(".bdic"))
+    return dicts
 
 
 class DictionaryManager:
@@ -19,29 +32,12 @@ class DictionaryManager:
 
     def showConfig(self):
         DictionaryDialog()
-        self._refreshLanguages()
+        self.refreshLanguages()
 
-    def getDictionaries(self):
-        dicts = []
-        for file in os.listdir(DICT_DIR):
-            if file.endswith(".bdic"):
-                dicts.append(file.removesuffix(".bdic"))
-        return dicts
-
-    def refreshUserDictionary(self, *args):
-        op = QueryOp(parent=mw, op=self._compileUserDictionary, success=self._refreshLanguages)
-        op.run_in_background()
-
-    def _compileUserDictionary(self, *args):
-        command = " ".join([os.path.join(ADDON_PATH, "convert_dict", "convert_dict"), PERSONAL_PATH])
-        ex = subprocess.call([command], shell=True)
-        if os.path.isfile(os.path.join(USER_PATH, "personal" + ".bdic")):
-            os.rename(os.path.join(USER_PATH, "personal" + ".bdic"), os.path.join(DICT_DIR, "personal" + ".bdic"))
-
-    def _refreshLanguages(self, *args):
+    def refreshLanguages(self, *args):
         p = mw.web._page.profile()
         p.setSpellCheckLanguages({})
-        p.setSpellCheckLanguages(self.getDictionaries())
+        p.setSpellCheckLanguages(getDictionaries())
         p.setSpellCheckEnabled(True)
 
 
@@ -49,19 +45,20 @@ class DictionaryDialog(QDialog):
 
     def __init__(self):
         QDialog.__init__(self)
-        self._enabled = self._getEnabledList()
+
+        self._enabled = getUserData("enabled", default={key: False for key in LANGUAGE_LIST})
         self._downloaded = {key: False for key in LANGUAGE_LIST}
+
         self._setupDialog()
-        self._isUpdating = False
         self._update()
         self.exec()
 
     def _setupDialog(self):
-        self.setWindowTitle("Dictionaries")
+        self.setWindowTitle("Spell checker configuration")
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.resize(250, 250)
+        self.resize(350, 300)
 
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()
         self.list = QListWidget()
         self.list.setAlternatingRowColors(True)
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -72,104 +69,120 @@ class DictionaryDialog(QDialog):
         dis_btn = QPushButton('Disable')
         dis_btn.clicked.connect(self._disable)
 
-        control_box = QHBoxLayout()
+        l1 = QLabel("Enabled")
+        l1.setStyleSheet(f"background-color:rgba{QCOLOR_GREEN.getRgb()}")
+        l2 = QLabel("Missing/downloading")
+        l2.setStyleSheet(f"background-color:rgba{QCOLOR_ORANGE.getRgb()}")
+        l3 = QLabel("Disabled")
+
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
+
+        comp_btn = QPushButton("Compile your\ndictonarys")
+        comp = lambda *args: runAsync(compileUserDictionaries, with_progress=True, success=self._update)
+        comp_btn.clicked.connect(comp)
+
+        open_pdics_btn = QPushButton("Open personal\ndictionary folder")
+        open_pdics_btn.clicked.connect((partial(openPath, USER_DICT_PATH)))
+
+        open_dics_btn = QPushButton("Open .bdic folder")
+        open_dics_btn.clicked.connect((partial(openPath, DICT_DIR)))
+
+        control_box = QVBoxLayout()
+        control_box.alignment()
         control_box.addWidget(en_btn)
         control_box.addWidget(dis_btn)
+        control_box.addWidget(l1)
+        control_box.addWidget(l2)
+        control_box.addWidget(l3)
+        control_box.addWidget(line)
+        control_box.addWidget(comp_btn)
+        control_box.addWidget(open_pdics_btn)
+        control_box.addWidget(open_dics_btn)
 
         layout.addWidget(self.list)
         layout.addLayout(control_box)
         self.setLayout(layout)
 
-    def _update(self):
-        self._isUpdating = True
+    def _update(self, *args):
         self.list.clear()
 
         download = []
+        dic_files = getDictionaries()
         for key, value in self._enabled.items():
-            dic_file = os.path.join(DICT_DIR, key + ".bdic")
-            dic_file_is = os.path.isfile(dic_file)
-            if dic_file_is and value:
+            if key in dic_files and value:
+                dic_files.remove(key)
                 self._downloaded[key] = True
-            if not dic_file_is and value:
+            if key not in dic_files and value:
                 download.append(key)
-            if dic_file_is and not value:
-                os.remove(dic_file)
+            if not value:
                 self._downloaded[key] = False
         if download:
             op = QueryOp(parent=mw, op=partial(self._manageDownloads, download), success=self._downloadItemUpdate)
             op.run_in_background()
 
+        for dic in dic_files:
+            if dic == "personal":
+                continue
+            item = QListWidgetItem(f"Custom: {dic}.bdic")
+            item.setBackground(QCOLOR_GREEN)
+            item.setData(Qt.ItemDataRole.WhatsThisRole, "custom")
+            item.setData(Qt.ItemDataRole.UserRole, dic)
+            self.list.addItem(item)
+
         for key, language in LANGUAGE_LIST.items():
             name = language[0]
             item = QListWidgetItem(name)
             if self._enabled[key]:
-                item.setBackground(QColor(255, 165, 0, 50))
+                item.setBackground(QCOLOR_ORANGE)
             if self._downloaded[key]:
-                item.setBackground(QColor(0, 255, 0, 50))
+                item.setBackground(QCOLOR_GREEN)
             item.setData(Qt.ItemDataRole.UserRole, key)
             self.list.addItem(item)
-        self._isUpdating = False
 
     def _downloadItemUpdate(self, keys):
+        dl = getDictionaries()
         for i in range(self.list.count()):
-            if self.list.item(i).data(Qt.ItemDataRole.UserRole) in keys:
-                self.list.item(i).setBackground(QColor(0, 255, 0, 50))
-
-    def _enable(self):
-        sel = [i for i in range(self.list.count()) if self.list.item(i).isSelected()]
-        if sel:
-            for i in sel:
-                fn = self.list.item(i).data(Qt.ItemDataRole.UserRole)
-                if fn is not None:
-                    self._enabled[fn] = True
-        self._setEnabledList()
-        self._update()
+            key = self.list.item(i).data(Qt.ItemDataRole.UserRole)
+            if key in keys and key in dl:
+                self.list.item(i).setBackground(QCOLOR_GREEN)
 
     def _manageDownloads(self, keys, *args):
         for key in keys:
-            self._download(key)
+            file_path = os.path.join(DICT_DIR, key + ".bdic.disabled")
+            if os.path.isfile(file_path):
+                os.rename(file_path, file_path.removesuffix(".disabled"))
+            else:
+                self._download(key)
         return keys
 
     def _download(self, key):
-        list_raw = get(URL_DICTIONARIES(LANGUAGE_LIST[key][1])).json()
+        list_raw = download(URL_DICTIONARIES(LANGUAGE_LIST[key][1])).json()
         targets = ["index.aff", "index.dic"]
         downloads = [item["download_url"] for item in list_raw if any([x in item["name"] for x in targets])]
 
         temp_files = []
         temp_dict = os.path.join(DICT_DIR, "tmp")
         for down in downloads:
-            try:
-                res = get(down)
-            except ConnectionError as error:
-                showWarning(
-                    "Internet connection failed. Dictionary files could not be downloaded. Please ensure you have an "
-                    f"internet connection and reopen the 'Dictionary Configuration'. Error: {error}")
-                break
-            if res.status_code != 200:
-                showWarning("Dictionary acces failed. Please contact the author of the PlugIn.")
-            if not os.path.exists(temp_dict):
-                try:
-                    os.makedirs(temp_dict)
-                except OSError as error:
-                    showWarning(f"Dictionary downloads could not be saved to disk. Error: {error}")
-            save_path = os.path.join(temp_dict, ".".join([key, down.split(".")[-1]]))
-            temp_files.append(save_path)
-            try:
-                with open(save_path, "w+b") as f:
-                    f.write(res.content)
-            except IOError as error:
-                showWarning(f"Dictionary downloads could not be saved to disk. Error: {error}")
+            save_path = downloadToFile(down, temp_dict, ".".join([key, down.split(".")[-1]]))
+            if save_path != -1:
+                temp_files.append(save_path)
 
-        command = " ".join([os.path.join(ADDON_PATH, "convert_dict", "convert_dict"), os.path.join(temp_dict, key)])
-        ex = subprocess.call([command], shell=True)
-        if ex != 0:
-            self._enabled[key] = False
-            showInfo(f"Dictionary {LANGUAGE_LIST[key][0]} is broken, please report this error message.")
+        compileBDIC(temp_dict, key, remove=True)
 
-        for f in temp_files:
-            os.remove(f)
-        if os.path.isfile(os.path.join(temp_dict, key + ".bdic")):
-            os.rename(os.path.join(temp_dict, key + ".bdic"), os.path.join(DICT_DIR, key + ".bdic"))
+    def _enable(self):
+        sel = [i for i in range(self.list.count()) if self.list.item(i).isSelected()]
+        if sel:
+            for i in sel:
+                fn = self.list.item(i).data(Qt.ItemDataRole.UserRole)
+                cu = self.list.item(i).data(Qt.ItemDataRole.WhatsThisRole)
+                if cu:
+                    continue
+                if fn is not None:
+                    self._enabled[fn] = True
+        setUserData("enabled", self._enabled)
+        self._update()
 
     def _disable(self):
         sel = [i for i in range(self.list.count())
@@ -177,35 +190,20 @@ class DictionaryDialog(QDialog):
         if sel:
             for i in sel:
                 fn = self.list.item(i).data(Qt.ItemDataRole.UserRole)
+                cu = self.list.item(i).data(Qt.ItemDataRole.WhatsThisRole)
+                file_path = os.path.join(DICT_DIR, fn + ".bdic")
+                if cu:
+                    os.remove(file_path)
                 if fn is not None:
                     self._enabled[fn] = False
-        self._setEnabledList()
+                    if os.path.isfile(file_path):
+                        os.rename(file_path, file_path + ".disabled")
+        setUserData("enabled", self._enabled)
         self._update()
 
     def _toggle(self):
         fn = self.list.currentItem().data(Qt.ItemDataRole.UserRole)
         if fn is not None:
             self._enabled[fn] = not self._enabled[fn]
-        self._setEnabledList()
+        setUserData("enabled", self._enabled)
         self._update()
-
-    def _getEnabledList(self):
-        default = {key: False for key in LANGUAGE_LIST}
-
-        if not os.path.isfile(ENABLED_PATH):
-            return default
-        try:
-            with open(ENABLED_PATH, "rb") as f:
-                pck = f.read()
-                return pickle.loads(pck)
-        except IOError as err:
-            showWarning(f"Could not read user files, check permissions. Error: {err}")
-            return default
-
-    def _setEnabledList(self):
-        try:
-            with open(ENABLED_PATH, "w+b") as f:
-                pck = pickle.dumps(self._enabled)
-                f.write(pck)
-        except IOError as err:
-            showWarning(f"List of enabled languages could not be saved to disk. Error: {err}")
