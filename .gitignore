@@ -1,7 +1,9 @@
-# Byte-compiled / optimized / DLL files
+# Custom
 user_files/
 tests/
 __pycache__/
+convert_dict
+# Byte-compiled / optimized / DLL files
 *.py[cod]
 *$py.class
 
