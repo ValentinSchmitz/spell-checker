@@ -121,16 +121,15 @@ class DictionaryDialog(QDialog):
             item.setData(Qt.ItemDataRole.UserRole, key)
             self.list.addItem(item)
 
-    @staticmethod
-    def _downloadItemUpdate():
-        li = DictionaryDialog.list
+    def _downloadItemUpdate(self):
+        li = self.list
         dl = getDictionaries()
         for i in range(li.count()):
             key = li.item(i).data(Qt.ItemDataRole.UserRole)
             if key in dl:
                 li.item(i).setBackground(QCOLOR_GREEN)
 
-    @background_op(success=_downloadItemUpdate)
+    @background_op()
     def _manageDownloads(self, keys, *args):
         for key in keys:
             file_path = os.path.join(DICT_DIR, key + ".bdic.disabled")
@@ -138,6 +137,7 @@ class DictionaryDialog(QDialog):
                 os.rename(file_path, file_path.removesuffix(".disabled"))
             else:
                 self._download(key)
+        self._downloadItemUpdate()
         return keys
 
     def _download(self, key):
