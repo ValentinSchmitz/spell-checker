@@ -61,7 +61,7 @@ class DictionaryDialog(QDialog):
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
 
-        comp_btn = QPushButton("Compile your\ndictonarys")
+        comp_btn = QPushButton("Compile your\ndictionaries")
         comp_btn.clicked.connect(compileUserDictionaries)
 
         open_pdics_btn = QPushButton("Open personal\ndictionary folder")
