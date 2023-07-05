@@ -12,7 +12,7 @@ Welcome to Spell Checker for Anki! This add-on enhances your Anki flashcard expe
 
 #### AnkiWeb
 
-The easiest way to install Spell Checker is through [AnkiWeb]().
+The easiest way to install Spell Checker is through [AnkiWeb](https://ankiweb.net/shared/info/369581638).
 
 #### Manual installation
 
