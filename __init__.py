@@ -1,22 +1,20 @@
-import os.path
-
+# -*- coding: utf-8 -*-
 from PyQt6.QtWebEngineCore import QWebEngineProfile
-from aqt import gui_hooks
-from aqt.operations import QueryOp
-from aqt.qt import *
 from aqt import editor, QMenu
-from .const import *
 from functools import partial
-from .manage import *
+from aqt import gui_hooks
+from aqt.qt import *
+
 from .dict import DictionaryManager, getDictionaries
+from .manage import *
+from .const import *
 
 dictMan = DictionaryManager()
 
 
 def addToDictionary(word):
-    saveWrite(PERSONAL_PATH, f"{word}\n", "a")
-    op = QueryOp(parent=mw, op=partial(compileUserDictionary, "personal"), success=dictMan.refreshLanguages)
-    op.run_in_background()
+    saveWrite(PERSONAL_PATH, f"{word}\n", "a+")
+    compilePersonal()
 
 
 def onContextMenuEvent(editor_webview: editor.EditorWebView, menu: QMenu):
@@ -49,10 +47,30 @@ def onContextMenuEvent(editor_webview: editor.EditorWebView, menu: QMenu):
 def setupBDIC(editor_webview: editor.EditorWebView):
     page = editor_webview._page
     profile: QWebEngineProfile = page.profile()
-    profile.setSpellCheckEnabled(True)
+    profile.setSpellCheckEnabled(getUserData("status", default=True))
     profile.setSpellCheckLanguages(getDictionaries())
 
 
+def on_setup_editor_buttons(buttons, edi: editor.Editor):
+    icon = os.path.join(ADDON_PATH, "icon.svg")
+
+    def toggleSpellChecker(edit: editor.Editor):
+        new = not getUserData("status", default=False)
+        setUserData("status", new)
+        mw.web._page.profile().setSpellCheckEnabled(new)
+
+    b = edi.addButton(
+        icon,
+        "SC",
+        toggleSpellChecker,
+        tip="Toggle Spell Checker"
+    )
+    buttons.append(b)
+    return buttons
+
+
+gui_hooks.editor_did_init_buttons.append(on_setup_editor_buttons)
 gui_hooks.editor_will_show_context_menu.append(onContextMenuEvent)
 gui_hooks.editor_web_view_did_init.append(setupBDIC)
 gui_hooks.main_window_did_init.append(checkConversionBinaries)
+mw.addonManager.setConfigAction(__name__, dictMan.showConfig)

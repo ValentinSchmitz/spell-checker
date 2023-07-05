@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-
-import os
 from aqt.utils import showWarning
 from aqt import mw
+import os
 
 BASE_URL_DICTIONARIES = "https://api.github.com/repos/wooorm/dictionaries/contents"
-BASE_URL_BINARIES = "https://api.github.com/repos/jankelemen/convert-dict-tool-from-chromium/contents"
+URL_BINARIES = "https://github.com/jankelemen/convert-dict-tool-from-chromium/archive/refs/heads/master.zip"
 VERSION_DICTIONARIES = "2a5353f1617f00e606dc036cab1c37df94272ca0"
 URL_DICTIONARIES = lambda path: f"{BASE_URL_DICTIONARIES}/{path}?ref={VERSION_DICTIONARIES}"
 
@@ -24,10 +23,6 @@ try:
     os.makedirs(USER_DICT_PATH, exist_ok=True)
 except OSError as error:
     showWarning(f"Can't create dictionary folder, check permissions. Error: {error}")
-
-EXPECTED_BINARIES = ['libbase.so', 'libperfetto.so', 'LICENSE', 'icudtl.dat', 'libabsl.so', 'libc++.so',
-                     'libboringssl.so', 'libbase_i18n.so', 'libchrome_zlib.so', 'libicui18n.so',
-                     'libicuuc.so', 'convert_dict']
 
 LANGUAGE_LIST = {'hy': ('Armenian', 'dictionaries/hy'), 'eu': ('Basque', 'dictionaries/eu'),
                  'br': ('Breton', 'dictionaries/br'), 'bg': ('Bulgarian', 'dictionaries/bg'),

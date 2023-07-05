@@ -1,24 +1,11 @@
-import os.path
-import pickle
-import subprocess
-from aqt.operations import QueryOp
-from requests import get
+# -*- coding: utf-8 -*-
 from aqt.qt import *
-from aqt.utils import openFolder, showWarning, showInfo
 from .const import *
-from functools import partial
 from .manage import *
+import os.path
 
 QCOLOR_ORANGE = QColor(255, 165, 0, 50)
 QCOLOR_GREEN = QColor(0, 255, 0, 50)
-
-
-def getDictionaries():
-    dicts = []
-    for file in os.listdir(DICT_DIR):
-        if file.endswith(".bdic"):
-            dicts.append(file.removesuffix(".bdic"))
-    return dicts
 
 
 class DictionaryManager:
@@ -32,23 +19,18 @@ class DictionaryManager:
 
     def showConfig(self):
         DictionaryDialog()
-        self.refreshLanguages()
-
-    def refreshLanguages(self, *args):
-        p = mw.web._page.profile()
-        p.setSpellCheckLanguages({})
-        p.setSpellCheckLanguages(getDictionaries())
-        p.setSpellCheckEnabled(True)
+        refreshLanguages()
 
 
 class DictionaryDialog(QDialog):
+
+    list = None
 
     def __init__(self):
         QDialog.__init__(self)
 
         self._enabled = getUserData("enabled", default={key: False for key in LANGUAGE_LIST})
         self._downloaded = {key: False for key in LANGUAGE_LIST}
-
         self._setupDialog()
         self._update()
         self.exec()
@@ -80,8 +62,7 @@ class DictionaryDialog(QDialog):
         line.setFrameShadow(QFrame.Shadow.Sunken)
 
         comp_btn = QPushButton("Compile your\ndictonarys")
-        comp = lambda *args: runAsync(compileUserDictionaries, with_progress=True, success=self._update)
-        comp_btn.clicked.connect(comp)
+        comp_btn.clicked.connect(compileUserDictionaries)
 
         open_pdics_btn = QPushButton("Open personal\ndictionary folder")
         open_pdics_btn.clicked.connect((partial(openPath, USER_DICT_PATH)))
@@ -111,16 +92,15 @@ class DictionaryDialog(QDialog):
         download = []
         dic_files = getDictionaries()
         for key, value in self._enabled.items():
+            if key not in dic_files and value:
+                download.append(key)
             if key in dic_files and value:
                 dic_files.remove(key)
                 self._downloaded[key] = True
-            if key not in dic_files and value:
-                download.append(key)
             if not value:
                 self._downloaded[key] = False
         if download:
-            op = QueryOp(parent=mw, op=partial(self._manageDownloads, download), success=self._downloadItemUpdate)
-            op.run_in_background()
+            self._manageDownloads(download)
 
         for dic in dic_files:
             if dic == "personal":
@@ -141,13 +121,16 @@ class DictionaryDialog(QDialog):
             item.setData(Qt.ItemDataRole.UserRole, key)
             self.list.addItem(item)
 
-    def _downloadItemUpdate(self, keys):
+    @staticmethod
+    def _downloadItemUpdate():
+        li = DictionaryDialog.list
         dl = getDictionaries()
-        for i in range(self.list.count()):
-            key = self.list.item(i).data(Qt.ItemDataRole.UserRole)
-            if key in keys and key in dl:
-                self.list.item(i).setBackground(QCOLOR_GREEN)
+        for i in range(li.count()):
+            key = li.item(i).data(Qt.ItemDataRole.UserRole)
+            if key in dl:
+                li.item(i).setBackground(QCOLOR_GREEN)
 
+    @background_op(success=_downloadItemUpdate)
     def _manageDownloads(self, keys, *args):
         for key in keys:
             file_path = os.path.join(DICT_DIR, key + ".bdic.disabled")
@@ -166,8 +149,7 @@ class DictionaryDialog(QDialog):
         temp_dict = os.path.join(DICT_DIR, "tmp")
         for down in downloads:
             save_path = downloadToFile(down, temp_dict, ".".join([key, down.split(".")[-1]]))
-            if save_path != -1:
-                temp_files.append(save_path)
+            temp_files.append(save_path)
 
         compileBDIC(temp_dict, key, remove=True)
 
