@@ -108,10 +108,11 @@ def checkConversionBinaries(*args):
 
 
 def compileBDIC(path, name, remove=False):
-    command = [BIN_PATH + " " + os.path.join(path, name)]
-    mode = os.stat(BIN_PATH).st_mode
-    mode |= (mode & 0o444) >> 2  # copy R bits to X
-    os.chmod(BIN_PATH, mode)
+    command = [BIN_PATH, os.path.join(path, name)]
+    if os.name != 'nt':
+        mode = os.stat(BIN_PATH).st_mode
+        mode |= (mode & 0o444) >> 2  # copy R bits to X
+        os.chmod(BIN_PATH, mode)
     res = subprocess.run(command, shell=True, capture_output=True, text=True)
     if remove:
         ex = [".dic", ".aff"]

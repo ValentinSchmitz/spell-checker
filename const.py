@@ -4,7 +4,8 @@ from aqt import mw
 import os
 
 BASE_URL_DICTIONARIES = "https://api.github.com/repos/wooorm/dictionaries/contents"
-URL_BINARIES = "https://github.com/jankelemen/convert-dict-tool-from-chromium/archive/refs/heads/master.zip"
+URL_BINARIES = "https://github.com/jankelemen/convert-dict-tool-from-chromium/archive/refs/heads/master.zip"\
+    if os.name != 'nt' else 'https://github.com/jmbeach/convert_dict_windows/archive/refs/heads/main.zip'
 VERSION_DICTIONARIES = "2a5353f1617f00e606dc036cab1c37df94272ca0"
 URL_DICTIONARIES = lambda path: f"{BASE_URL_DICTIONARIES}/{path}?ref={VERSION_DICTIONARIES}"
 
@@ -14,7 +15,7 @@ USER_PATH = os.path.join(ADDON_PATH, "user_files")
 ENABLED_PATH = os.path.join(USER_PATH, "enabled.pck")
 USER_DICT_PATH = os.path.join(USER_PATH, "user_dics")
 BINS_PATH = os.path.join(ADDON_PATH, "convert_dict")
-BIN_PATH = os.path.join(ADDON_PATH, "convert_dict", "convert_dict")
+BIN_PATH = os.path.join(ADDON_PATH, "convert_dict",  "convert_dict" if os.name != 'nt' else "convert_dict.exe")
 PERSONAL_PATH = os.path.join(USER_PATH, "user_dics", "personal.txt")
 
 try:
