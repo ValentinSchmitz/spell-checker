@@ -63,9 +63,21 @@ def compilePersonal(*args):
     compileUserDictionary("personal")
 
 
+import shutil
+
 def compileUserDictionary(name, *args):
     base = os.path.join(USER_DICT_PATH, name)
     tmp_files = []
+
+    old_dictionary_file = base + ".dic"
+    if os.path.isfile(old_dictionary_file):
+        # Backup the old dictionary
+        backup_file = base + "_backup.dic"
+        shutil.copy(old_dictionary_file, backup_file)
+
+        # Remove the old dictionary
+        os.remove(old_dictionary_file)
+
     if os.path.isfile(base + ".txt"):
         with open(base + ".txt", "rbU") as f:
             line_count = sum(1 for _ in f)
@@ -74,8 +86,10 @@ def compileUserDictionary(name, *args):
             for line in in_file:
                 out_file.write(line)
             tmp_files.append(out_file.name)
+
     if not os.path.isfile(base + ".dic"):
         return
+
     if not os.path.isfile(base + ".aff"):
         unique_chars = set()
         with open(base + ".dic", 'r') as file:
@@ -86,10 +100,13 @@ def compileUserDictionary(name, *args):
         with open(base + ".aff", 'w') as file:
             file.write("".join(content))
             tmp_files.append(file.name)
-    compileBDIC(USER_DICT_PATH, name, remove=False)
-    for f in tmp_files:
-        os.remove(f)
 
+    compileBDIC(USER_DICT_PATH, name, remove=False)
+
+    # Clean up temporary files
+    for f in tmp_files:
+        if os.path.isfile(f):
+            os.remove(f)
 
 @background_op(with_progress=True, label="Spell checker:\nDownloading binaries for .bdic conversion...")
 def checkConversionBinaries(*args):
