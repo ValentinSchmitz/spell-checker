@@ -1,10 +1,8 @@
-<p align="center"><img src="https://github.com/ValentinSchmitz/spell-checker/assets/72657531/95e213f6-87d7-477f-877e-b55aa7ed44c4"></p>
-<h1 align="center">Spell Checker for Anki</h1>
+<h1 align="center">[DEPRECATED] Spell Checker for Anki</h1>
 
-<p align="center">
-<a title="Latest (pre-)release" href="https://github.com/ValentinSchmitz/spell-checker/releases"><img src ="https://img.shields.io/github/release-pre/ValentinSchmitz/spell-checker.svg?colorB=lightblue"></a>
-<a title="License: GNU AGPLv3" href="https://github.com/ValentinSchmitz/spell-checker/blob/main/LICENSE"><img  src="https://img.shields.io/badge/license-GNU AGPLv3-green.svg?colorB=lightblue"></a>
+**This is no longer supported, please consider using (https://ankiweb.net/shared/info/143753963) instead.**
 
+### Legacy Documentation
   
 Welcome to Spell Checker for Anki! This add-on enhances your Anki flashcard experience by ensuring your entries are error-free. The spell-checker identifies and lets you correct spelling mistakes in multiple languages, seamlessly integrating into the Anki interface. You can add your own words via the integrated personal dictionary.
 
